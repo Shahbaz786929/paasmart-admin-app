@@ -1,56 +1,103 @@
-# Welcome to your Expo app 👋
+# PaaSmart Admin Panel
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+PaaSmart Admin Panel is an administrative application built with React Native and Expo for managing the PaaSmart e-commerce and multi-tenant platform.
 
-## Get started
+The admin panel communicates with the PaaSmart Spring Boot backend through REST APIs and provides administrative tools for managing shops, users, orders, coupons, delivery pricing, and tenants.
 
-1. Install dependencies
+##  Tech Stack
 
-   ```bash
-   npm install
-   ```
+- React Native
+- Expo
+- Expo Router
+- TypeScript
+- React 19
+- React Native 0.86
+- Expo SDK 57
+- AsyncStorage
+- React Native Web
+- REST API
+- PaaSmart Spring Boot Backend
 
-2. Start the app
+##  Features
 
-   ```bash
-   npx expo start
-   ```
+### Dashboard
+- Platform overview
+- Order statistics
+- Administrative information
 
-In the output, you'll find options to open the app in a
+### Shop Management
+- View shops
+- Review pending shops
+- Approve shops
+- Reject shops
+- Suspend shops
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
+### User Management
+- View users
+- Block users
+- Unblock users
 
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
+### Order Management
+- View orders
+- Monitor order information
+- Review order status
 
-## Get a fresh project
+### Coupon Management
+- View coupons
+- Create coupons
+- Deactivate coupons
 
-When you're ready, run:
+### Delivery Settings
+- View delivery pricing
+- Update base delivery fee
+- Update per-kilometer delivery fee
 
-```bash
-npm run reset-project
-```
+### Multi-Tenant Management
+- View tenants
+- Create tenants
+- Activate tenants
+- Suspend tenants
+- Create tenant administrators
 
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
+##  Backend
 
-### Other setup steps
+The Admin Panel communicates with the PaaSmart backend API.
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Production backend:
 
-## Learn more
+https://paasmart-backend.onrender.com
 
-To learn more about developing your project with Expo, look at the following resources:
+API endpoints are organized under:
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+`/api/v1`
 
-## Join the community
+##  Configuration
 
-Join our community of developers creating universal apps.
+The application uses a configurable backend API URL.
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+For local development, the application can point to the local backend.
+
+For production, it should use:
+
+`https://paasmart-backend.onrender.com`
+
+Do not store passwords, API secrets, private keys, database credentials, or other sensitive information in the repository.
+
+##  Project Structure
+
+```text
+paasmart-admin-app/
+├── assets/
+├── src/
+│   ├── api/
+│   ├── app/
+│   ├── components/
+│   ├── context/
+│   ├── screens/
+│   ├── theme/
+│   └── utils/
+├── app.json
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+└── README.md
