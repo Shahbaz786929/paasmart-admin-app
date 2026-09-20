@@ -1,9 +1,12 @@
+import { Ionicons } from "@expo/vector-icons";
+import * as AuthSession from "expo-auth-session";
 import { useRouter } from "expo-router";
-import { useState } from "react";
-import { KeyboardAvoidingView, Platform, StatusBar, StyleSheet, Text, View } from "react-native";
+import * as WebBrowser from "expo-web-browser";
+import { useEffect, useState } from "react";
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StatusBar, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { requestOtp } from "../api/auth";
+import { adminEmailLogin, adminGoogleLogin, getGoogleConfig } from "../api/auth";
 import { ApiError } from "../api/client";
 import { AuthBackground } from "../components/AuthBackground";
 import { Button } from "../components/Button";
@@ -14,78 +17,174 @@ import { ScreenContainer } from "../components/ScreenContainer";
 import { colors } from "../theme/colors";
 import { typography } from "../theme/typography";
 import { useResponsive } from "../theme/useResponsive";
+import { saveAuthSession } from "../utils/authStorage";
+
+WebBrowser.maybeCompleteAuthSession();
 
 export function LoginScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { scale } = useResponsive();
 
-  const [mobileNumber, setMobileNumber] = useState("");
-  const [error, setError] = useState<string | undefined>();
-  const [loading, setLoading] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
 
-  const validate = () => {
-    if (!/^[6-9]\d{9}$/.test(mobileNumber)) {
-      setError("Enter a valid 10-digit mobile number");
-      return false;
-    }
-    setError(undefined);
-    return true;
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
+  const [generalError, setGeneralError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  useEffect(() => {
+    getGoogleConfig().then((cfg) => setClientId(cfg.clientId)).catch(() => {});
+  }, []);
+
+  const redirectUri = AuthSession.makeRedirectUri({ scheme: "paasmartadminapp" });
+
+  const validateEmailForm = () => {
+    const errs: typeof errors = {};
+    if (!/^\S+@\S+\.\S+$/.test(email)) errs.email = "Enter a valid email address";
+    if (!password) errs.password = "Password is required";
+    setErrors(errs);
+    return Object.keys(errs).length === 0;
   };
 
-  const handleSendOtp = async () => {
-    if (!validate()) return;
-
+  const handleEmailLogin = async () => {
+    if (!validateEmailForm()) return;
+    setGeneralError("");
     setLoading(true);
     try {
-      await requestOtp(mobileNumber);
-      router.push({ pathname: "/(auth)/otp" as any, params: { mobileNumber } });
+      const auth = await adminEmailLogin({ email: email.trim().toLowerCase(), password });
+      await saveAuthSession(auth);
+      router.replace("/(auth)/(tabs)" as any);
     } catch (err) {
-      const message = err instanceof ApiError ? err.message : "Something went wrong. Please try again.";
-      setError(message);
+      setGeneralError(err instanceof ApiError ? err.message : "Something went wrong. Please try again.");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleGooglePress = async () => {
+    if (!clientId) return;
+    setGeneralError("");
+    setGoogleLoading(true);
+    try {
+      const discovery = {
+        authorizationEndpoint: "https://accounts.google.com/o/oauth2/v2/auth",
+        tokenEndpoint: "https://oauth2.googleapis.com/token",
+      };
+      const request = new AuthSession.AuthRequest({
+        clientId,
+        redirectUri,
+        responseType: AuthSession.ResponseType.Code,
+        usePKCE: true,
+        scopes: ["openid", "profile", "email"],
+      });
+      const result = await request.promptAsync(discovery);
+
+      if (result.type === "success" && result.params.code) {
+        const auth = await adminGoogleLogin({
+          code: result.params.code,
+          redirectUri,
+          codeVerifier: request.codeVerifier,
+        });
+        await saveAuthSession(auth);
+        router.replace("/(auth)/(tabs)" as any);
+      } else if (result.type !== "cancel" && result.type !== "dismiss") {
+        setGeneralError("Google sign-in was not completed.");
+      }
+    } catch (err) {
+      setGeneralError(err instanceof ApiError ? err.message : "Google sign-in failed.");
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
   return (
     <AuthBackground>
       <ScreenContainer>
+        <StatusBar barStyle="light-content" />
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          <StatusBar barStyle="light-content" />
-
-          <View
-            style={[
-              styles.container,
-              { paddingHorizontal: scale(20), paddingTop: insets.top + scale(6), paddingBottom: insets.bottom + scale(16), justifyContent: "flex-start" },
+          <ScrollView
+            contentContainerStyle={[
+              styles.scrollContent,
+              { paddingHorizontal: scale(24), paddingTop: insets.top + scale(10), paddingBottom: insets.bottom + scale(20) },
             ]}
+            keyboardShouldPersistTaps="handled"
           >
-            <View style={[styles.header, { marginBottom: scale(8) }]}>
-              <Logo size={scale(300)} />
-              <Text style={[styles.title, { fontSize: scale(typography.size.lg), marginTop: scale(-24) }]}>
-                PassMart Admin
+            <View style={[styles.header, { marginBottom: scale(20) }]}>
+              <Logo size={scale(180)} />
+              <Text style={[styles.title, { fontSize: scale(typography.size.lg), marginTop: scale(10) }]}>
+                PaasMart Admin
               </Text>
-              <Text style={[styles.subtitle, { fontSize: scale(typography.size.sm), marginTop: scale(2) }]}>
-                For platform admins &amp; city partners only
+              <Text style={[styles.subtitle, { fontSize: scale(typography.size.sm), marginTop: scale(4) }]}>
+                For platform admins & city partners only
               </Text>
             </View>
 
-            <Card>
+            <Card style={{ ...styles.cardShadow, padding: scale(20) }}>
               <Input
-                label="Mobile Number"
-                placeholder="Enter your number"
-                keyboardType="phone-pad"
-                maxLength={10}
-                value={mobileNumber}
-                onChangeText={setMobileNumber}
-                error={error}
+                label="Email Address"
+                placeholder="you@example.com"
+                autoCapitalize="none"
+                keyboardType="email-address"
+                value={email}
+                onChangeText={setEmail}
+                error={errors.email}
+                leftElement={<Ionicons name="mail-outline" size={scale(18)} color={colors.textMuted} />}
               />
 
-              <View style={{ height: scale(8) }} />
+              <Input
+                label="Password"
+                placeholder="Enter your password"
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                error={errors.password}
+                leftElement={<Ionicons name="lock-closed-outline" size={scale(18)} color={colors.textMuted} />}
+                rightElement={
+                  <Pressable onPress={() => setShowPassword((v) => !v)} hitSlop={10}>
+                    <Ionicons name={showPassword ? "eye-off-outline" : "eye-outline"} size={scale(18)} color={colors.textMuted} />
+                  </Pressable>
+                }
+              />
 
-              <Button label="Send OTP" onPress={handleSendOtp} loading={loading} />
+              {generalError ? (
+                <View style={[styles.errorBox, { padding: scale(10), marginBottom: scale(12) }]}>
+                  <Ionicons name="alert-circle-outline" size={scale(16)} color={colors.error} />
+                  <Text style={[styles.errorText, { fontSize: scale(typography.size.xs), marginLeft: scale(6), flex: 1 }]}>{generalError}</Text>
+                </View>
+              ) : null}
+
+              <Button label="Log In" onPress={handleEmailLogin} loading={loading} />
+
+              <View style={[styles.dividerRow, { marginVertical: scale(18) }]}>
+                <View style={styles.dividerLine} />
+                <Text style={[styles.dividerText, { fontSize: scale(typography.size.xs), marginHorizontal: scale(10) }]}>OR CONTINUE WITH</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              <Pressable
+                onPress={handleGooglePress}
+                disabled={!clientId || googleLoading}
+                style={({ pressed }) => [
+                  styles.googleBtn,
+                  { paddingVertical: scale(13), borderRadius: scale(14), opacity: pressed ? 0.8 : !clientId ? 0.5 : 1 },
+                ]}
+              >
+                <Ionicons name="logo-google" size={scale(18)} color={colors.textPrimary} />
+                <Text style={{ color: colors.textPrimary, fontSize: scale(typography.size.sm), fontWeight: typography.weight.bold, marginLeft: scale(8) }}>
+                  {googleLoading ? "Signing in..." : "Google"}
+                </Text>
+              </Pressable>
             </Card>
-          </View>
+
+            <Text style={[styles.footerNote, { fontSize: scale(typography.size.xs), marginTop: scale(20) }]}>
+              Admin access is granted only to emails added by the super admin.
+              Contact support if you believe you should have access.
+            </Text>
+          </ScrollView>
         </KeyboardAvoidingView>
       </ScreenContainer>
     </AuthBackground>
@@ -94,8 +193,29 @@ export function LoginScreen() {
 
 const styles = StyleSheet.create({
   flex: { flex: 1 },
-  container: { flex: 1 },
+  scrollContent: { flexGrow: 1, justifyContent: "center" },
   header: { alignItems: "center" },
   title: { color: colors.textPrimary, fontWeight: typography.weight.heavy },
   subtitle: { color: colors.textSecondary, textAlign: "center" },
+  cardShadow: {
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.3,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  errorBox: { flexDirection: "row", alignItems: "center", backgroundColor: `${colors.error}12`, borderRadius: 10, borderWidth: 1, borderColor: `${colors.error}35` },
+  errorText: { color: colors.error, textAlign: "center" },
+  dividerRow: { flexDirection: "row", alignItems: "center" },
+  dividerLine: { flex: 1, height: 1, backgroundColor: colors.surfaceBorder },
+  dividerText: { color: colors.textMuted, fontWeight: typography.weight.bold, letterSpacing: 0.5 },
+  googleBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1.5,
+    borderColor: colors.surfaceBorder,
+    backgroundColor: colors.surface,
+  },
+  footerNote: { color: colors.textMuted, textAlign: "center", lineHeight: 16 },
 });

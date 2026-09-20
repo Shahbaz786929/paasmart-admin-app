@@ -8,9 +8,10 @@ type InputProps = TextInputProps & {
   label?: string;
   error?: string;
   rightElement?: React.ReactNode;
+  leftElement?: React.ReactNode;
 };
 
-export function Input({ label, error, rightElement, style, ...rest }: InputProps) {
+export function Input({ label, error, rightElement, leftElement, style, ...rest }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
   const { scale } = useResponsive();
 
@@ -37,6 +38,7 @@ export function Input({ label, error, rightElement, style, ...rest }: InputProps
           error && styles.inputRowError,
         ]}
       >
+        {leftElement || null}
         <TextInput
           placeholderTextColor={colors.textMuted}
           style={[

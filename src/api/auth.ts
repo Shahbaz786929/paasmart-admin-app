@@ -1,13 +1,5 @@
 import { apiRequest } from "./client";
 
-export type RegisterPayload = {
-  name: string;
-  phone: string;
-  tenantSlug?: string;
-  referralCode?: string;
-  role: "CUSTOMER" | "SELLER" | "DELIVERY" | "ADMIN" | "SUPPORT_AGENT" | "TENANT_ADMIN";
-};
-
 export type AuthResponse = {
   token: string;
   userId: number;
@@ -15,18 +7,34 @@ export type AuthResponse = {
   role: string;
 };
 
-// POST /api/v1/auth/register — creates the account (does NOT send an OTP by itself)
-export function registerUser(payload: RegisterPayload): Promise<string> {
-  return apiRequest<string>("/auth/register", { method: "POST", body: payload });
+export type GoogleConfig = {
+  clientId: string;
+};
+
+// GET /api/v1/auth/google-config
+export function getGoogleConfig(): Promise<GoogleConfig> {
+  return apiRequest<GoogleConfig>("/auth/google-config");
 }
 
-// POST /api/v1/auth/login-otp — triggers OTP generation, used for both
-// "Login" and right after a successful Register.
-export function requestOtp(phone: string): Promise<string> {
-  return apiRequest<string>("/auth/login-otp", { method: "POST", body: { phone } });
+export type AdminGoogleLoginPayload = {
+  code: string;
+  redirectUri: string;
+  codeVerifier?: string;
+};
+
+// POST /api/v1/auth/admin/google — admin-only. Does NOT create a new account;
+// only logs in an email that a super admin has already added to the database
+// with role ADMIN or TENANT_ADMIN.
+export function adminGoogleLogin(payload: AdminGoogleLoginPayload): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>("/auth/admin/google", { method: "POST", body: payload });
 }
 
-// POST /api/v1/auth/verify-otp — verifies the code and returns the JWT + user info
-export function verifyOtp(phone: string, otp: string): Promise<AuthResponse> {
-  return apiRequest<AuthResponse>("/auth/verify-otp", { method: "POST", body: { phone, otp } });
+export type AdminEmailLoginPayload = {
+  email: string;
+  password: string;
+};
+
+// POST /api/v1/auth/admin/email-login — admin-only email+password login.
+export function adminEmailLogin(payload: AdminEmailLoginPayload): Promise<AuthResponse> {
+  return apiRequest<AuthResponse>("/auth/admin/email-login", { method: "POST", body: payload });
 }
