@@ -106,8 +106,9 @@ export function LoginScreen() {
       <ScreenContainer>
         <StatusBar barStyle="light-content" />
         <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
-          showsVerticalScrollIndicator={false}
+         
           <ScrollView
+           showsVerticalScrollIndicator={false}
             contentContainerStyle={[
               styles.scrollContent,
               { paddingHorizontal: scale(24), paddingTop: insets.top + scale(10), paddingBottom: insets.bottom + scale(20) },
